@@ -39,6 +39,7 @@ func main() {
 		cli.BoolFlag{Name: "no-prefix", EnvVar: "HIVEMIND_NO_PREFIX", Usage: "process names will not be printed if the flag is specified", Destination: &conf.NoPrefix},
 		cli.BoolFlag{Name: "print-timestamps, T", EnvVar: "HIVEMIND_PRINT_TIMESTAMPS", Usage: "timestamps will be printed if the flag is specified", Destination: &conf.PrintTimestamps},
 		cli.BoolFlag{Name: "exit-with-highest-exit-code, e", EnvVar: "HIVEMIND_EXIT_WITH_HIGHEST_EXIT_CODE", Usage: "exit hivemind with highest exit code from all processes", Destination: &conf.ExitWithHighest},
+		cli.BoolFlag{Name: "as-job-runner", EnvVar: "HIVEMIND_AS_JOB_RUNNER", Usage: "be a job runner instead: Will wait for all to finish with exit code 0, or fail.", Destination: &conf.AsJobRunner},
 	}
 
 	app.Action = func(c *cli.Context) error {

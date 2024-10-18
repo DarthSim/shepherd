@@ -56,7 +56,7 @@ func (p *process) Running() bool {
 	return p.Process != nil && p.ProcessState == nil
 }
 
-func (p *process) Run() {
+func (p *process) Run() bool {
 	p.output.PipeOutput(p)
 	defer p.output.ClosePipe(p)
 
@@ -66,8 +66,10 @@ func (p *process) Run() {
 
 	if err := p.Cmd.Run(); err != nil {
 		p.writeErr(err)
+		return false
 	} else {
 		p.writeLine([]byte("\033[1mProcess exited\033[0m"))
+		return true
 	}
 }
 

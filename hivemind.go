@@ -22,6 +22,7 @@ type hivemindConfig struct {
 	NoPrefix           bool
 	PrintTimestamps    bool
 	ExitWithHighest    bool
+	AsJobRunner        bool
 }
 
 type hivemind struct {
@@ -32,6 +33,7 @@ type hivemind struct {
 	done        chan bool
 	interrupted chan os.Signal
 	timeout     time.Duration
+	jobRunner   bool
 }
 
 func newHivemind(conf hivemindConfig) (h *hivemind) {
@@ -44,6 +46,7 @@ func newHivemind(conf hivemindConfig) (h *hivemind) {
 	}
 
 	h.output = &multiOutput{printProcName: !conf.NoPrefix, printTimestamp: conf.PrintTimestamps}
+	h.jobRunner = conf.AsJobRunner
 
 	entries := parseProcfile(conf.Procfile, conf.PortBase, conf.PortStep)
 	h.procs = make([]*process, 0)
@@ -63,17 +66,32 @@ func (h *hivemind) runProcess(proc *process) {
 	h.procWg.Add(1)
 
 	go func() {
-		defer h.procWg.Done()
-		defer func() { h.done <- true }()
+		procSucceed := false
 
-		proc.Run()
+		defer h.procWg.Done()
+		defer func() { h.done <- procSucceed }()
+
+		procSucceed = proc.Run()
 	}()
 }
 
-func (h *hivemind) waitForDoneOrInterrupt() {
+func (h *hivemind) waitForDoneOrInterrupt() bool {
 	select {
-	case <-h.done:
+	case done := <-h.done:
+		return done
 	case <-h.interrupted:
+		return false
+	}
+}
+
+func (h *hivemind) waitForJobsToCompleteOrInterrupt() {
+	jobsCount := len(h.procs)
+
+	for jobsCompleted := 0; jobsCompleted < jobsCount; jobsCompleted++ {
+		succeeded := h.waitForDoneOrInterrupt()
+		if !succeeded {
+			return
+		}
 	}
 }
 
@@ -85,7 +103,11 @@ func (h *hivemind) waitForTimeoutOrInterrupt() {
 }
 
 func (h *hivemind) waitForExit() {
-	h.waitForDoneOrInterrupt()
+	if h.jobRunner {
+		h.waitForJobsToCompleteOrInterrupt()
+	} else {
+		h.waitForDoneOrInterrupt()
+	}
 
 	for _, proc := range h.procs {
 		go proc.Interrupt()
