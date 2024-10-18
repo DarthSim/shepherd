@@ -21,6 +21,7 @@ type hivemindConfig struct {
 	Timeout            int
 	NoPrefix           bool
 	PrintTimestamps    bool
+	ExitWithHighest    bool
 }
 
 type hivemind struct {
@@ -97,7 +98,7 @@ func (h *hivemind) waitForExit() {
 	}
 }
 
-func (h *hivemind) Run() {
+func (h *hivemind) Run() int {
 	fmt.Printf("\033]0;%s | hivemind\007", h.title)
 
 	h.done = make(chan bool, len(h.procs))
@@ -112,4 +113,15 @@ func (h *hivemind) Run() {
 	go h.waitForExit()
 
 	h.procWg.Wait()
+
+	exitCode := 0
+
+	for _, proc := range h.procs {
+		code := proc.ProcessState.ExitCode()
+		if code > exitCode {
+			exitCode = code
+		}
+	}
+
+	return exitCode
 }
