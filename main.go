@@ -30,14 +30,16 @@ func main() {
 	app.HideHelp = true
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{Name: "title, w", EnvVar: "HIVEMIND_TITLE", Usage: "Specify a title of the application", Destination: &conf.Title},
-		cli.StringFlag{Name: "processes, l", EnvVar: "HIVEMIND_PROCESSES", Usage: "Specify process names to launch. Divide names with comma", Destination: &conf.ProcNames},
+		cli.StringFlag{Name: "title, w", EnvVar: "HIVEMIND_TITLE", Usage: "specify a title of the application", Destination: &conf.Title},
+		cli.StringFlag{Name: "processes, l", EnvVar: "HIVEMIND_PROCESSES", Usage: "specify process names to launch. Divide names with comma", Destination: &conf.ProcNames},
 		cli.IntFlag{Name: "port, p", EnvVar: "HIVEMIND_PORT,PORT", Usage: "specify a port to use as the base", Value: 5000, Destination: &conf.PortBase},
 		cli.IntFlag{Name: "port-step, P", EnvVar: "HIVEMIND_PORT_STEP", Usage: "specify a step to increase port number", Value: 100, Destination: &conf.PortStep},
 		cli.StringFlag{Name: "root, d", EnvVar: "HIVEMIND_ROOT", Usage: "specify a working directory of application. Default: directory containing the Procfile", Destination: &conf.Root},
 		cli.IntFlag{Name: "timeout, t", EnvVar: "HIVEMIND_TIMEOUT", Usage: "specify the amount of time (in seconds) processes have to shut down gracefully before being brutally killed", Value: 5, Destination: &conf.Timeout},
 		cli.BoolFlag{Name: "no-prefix", EnvVar: "HIVEMIND_NO_PREFIX", Usage: "process names will not be printed if the flag is specified", Destination: &conf.NoPrefix},
 		cli.BoolFlag{Name: "print-timestamps, T", EnvVar: "HIVEMIND_PRINT_TIMESTAMPS", Usage: "timestamps will be printed if the flag is specified", Destination: &conf.PrintTimestamps},
+		cli.BoolFlag{Name: "exit-with-highest-exit-code, e", EnvVar: "HIVEMIND_EXIT_WITH_HIGHEST_EXIT_CODE", Usage: "exit hivemind with highest exit code from all processes", Destination: &conf.ExitWithHighest},
+		cli.BoolFlag{Name: "as-job-runner", EnvVar: "HIVEMIND_AS_JOB_RUNNER", Usage: "be a job runner instead: Will wait for all to finish with exit code 0, or fail.", Destination: &conf.AsJobRunner},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -65,7 +67,10 @@ func main() {
 		conf.Root, err = filepath.Abs(conf.Root)
 		fatalOnErr(err)
 
-		newHivemind(conf).Run()
+		exitCode := newHivemind(conf).Run()
+		if exitCode > 0 && conf.ExitWithHighest {
+			return cli.NewExitError("At least one process failed", exitCode)
+		}
 
 		return nil
 	}
